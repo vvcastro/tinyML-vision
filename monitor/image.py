@@ -13,7 +13,7 @@ bytesPerPixel = 2
 rawWidth, rawHeight = (176, 144)
 rawBytesPerFrame = rawWidth * rawHeight * bytesPerPixel
 
-cropWidth, cropHeight = (96, 96)
+cropWidth, cropHeight = (112, 112)
 cropBytesPerFrame = cropWidth * cropHeight * bytesPerPixel
 rgbBytesPerFrame = cropWidth * cropHeight * 3
 
@@ -67,10 +67,10 @@ def process_rgb_frame():
     image = Image.new("RGB", (cropWidth, cropHeight))
     pixels = image.load()
 
-    for j in range(cropWidth):
-        for i in range(cropHeight):
+    for row in range(cropHeight):
+        for col in range(cropWidth):
             pixel_values = arduino.readline().decode().strip()
-            pixels[j, i] = tuple([int(float(v) * 255) for v in pixel_values.split(",")])
+            pixels[col, row] = tuple([int(float(v) * 255) for v in pixel_values.split(",")])
     return image
 
 

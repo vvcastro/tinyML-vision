@@ -88,16 +88,6 @@ void loop() {
         MicroPrintf(" - Error: Frame capture failed!");
     }
 
-    MicroPrintf("PIXELS");
-    for (int pos = 0; pos < (modelHeight * modelWidth); pos++) {
-        Serial.print( (inputTensor->data.int8[3 * pos] - inputTensor->params.zero_point) * inputTensor->params.scale, 5);
-        Serial.print(",");
-        Serial.print( (inputTensor->data.int8[3 * pos + 1] - inputTensor->params.zero_point) * inputTensor->params.scale, 5 );
-        Serial.print(",");
-        Serial.print( (inputTensor->data.int8[3 * pos + 2] - inputTensor->params.zero_point) * inputTensor->params.scale, 5);
-        Serial.println();
-    }
-
     // Run the model on the loaded input.
     MicroPrintf("2) Running model.");
     if (kTfLiteOk != interpreter->Invoke()) {
