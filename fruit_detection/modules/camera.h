@@ -4,38 +4,49 @@
 #include "tensorflow/lite/c/common.h"
 #include "Arduino.h"
 
-// Define raw image shape
-constexpr size_t rawCols = 176;
-constexpr size_t rawRows = 144;
+// Type of images we are using
+constexpr int CAMERA_SHAPE = 3; // (QCIF = 3); (QQVGA = 4)
+constexpr int camPixelBytes = 2;
 
-// Define input image shape
-constexpr int modelCols = 96;
-constexpr int modelRows = 96;
-constexpr int modelChannels = 1;
-
-// Number of bytes to use depending on type
-enum COLOR_NAME {
-    RGB_COLOR = 2,
-    GRAY_COLOR = 4
-};
-
-// Initialises the camera in the required configurations
-TfLiteStatus SetUpHardware();
+// Define models input shape
+constexpr int modelHeight = 128;
+constexpr int modelWidth = 128;
+constexpr int modelChannels = 3;
 
 // Places a quantized 8-bit image into the given tensor
-TfLiteStatus GetImage(int8_t* imgBuffer);
+TfLiteStatus GetImage(int8_t* outBuffer, float quantScale, int32_t zeroPoint);
 
 // Just to wait until interaction
 void WaitForButton();
 
-constexpr size_t GetPixelBytes(const COLOR_NAME scheme) {
-    switch (scheme) {
-        case RGB_COLOR:
-            return 2;
-        case GRAY_COLOR:
-            return 1;
+// Initialises the camera in the required configurations
+TfLiteStatus SetUpHardware();
+
+//----------------------
+// Utility expressions
+//----------------------
+
+constexpr int GetCameraHeight() {
+    switch (CAMERA_SHAPE) {
+        case 3:
+            return 144;
+        case 4:
+            return 120;
     }
-    return 0;
+}
+
+constexpr int GetCameraWidth() {
+    switch (CAMERA_SHAPE) {
+        case 3:
+            return 176;
+        case 4:
+            return 160;
+    }
+}
+
+// Returns the total number of bytes in one frame of the camera
+constexpr int CameraFrameSize() {
+    return camPixelBytes * GetCameraWidth() * GetCameraHeight();
 }
 
 #endif

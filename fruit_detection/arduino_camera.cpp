@@ -1,67 +1,44 @@
 #include "tensorflow/lite/micro/micro_log.h"
 #include "tensorflow/lite/micro/micro_utils.h"
 
-#include "modules/camera.h"
 #include "TinyMLShield.h"
+#include "modules/camera.h"
 
 #ifndef ARDUINO_EXCLUDE_CODE
 
 #include "Arduino.h"
 
-const COLOR_NAME COLOR_SCHEME = RGB_COLOR;
+uint8_t cameraBuffer[CameraFrameSize()];
 
-namespace {
-
-    // Allocate tensors one to optimise memory
-    constexpr size_t bytesPerPixel = GetPixelBytes(COLOR_SCHEME);
-    uint8_t rawImageBuffer[rawCols * rawRows * bytesPerPixel];
-    uint8_t croppedImageBuffer[modelCols * modelRows * bytesPerPixel];
-    uint8_t rgbImageBuffer[modelCols * modelRows * 3];
+// Performs several computations over the image:
+// (0) Captures the image.
+// (1) Crops the image to the desired model's input size.
+// (2) Transform from RGB565 to RGB888, adding one byte.
+// (3) Quantize the values to a int8_t type.
+TfLiteStatus GetImage(int8_t* outBuffer, float quantScale, int32_t zeroPoint) {
 
     // Capture a frame and store it into the buffer
-    TfLiteStatus CaptureFrame() {
-        Camera.readFrame(rawImageBuffer);
-        return kTfLiteOk;
-    }
+    Camera.readFrame(cameraBuffer);
 
-    // Crop the image to the required input image size
-    TfLiteStatus CropFrameImage() {
+    // Define the vertix for the crop
+    const int rowTop = (GetCameraHeight() - modelHeight) / 2;
+    const int rowBottom = rowTop + modelHeight - 1;
+    const int colLeft = (GetCameraWidth() - modelWidth) / 2;
+    const int colRight = colLeft + modelWidth - 1;
 
-        // Define the vertix for the crop
-        const size_t rowTop = (rawRows - modelRows) / 2;
-        const size_t rowBottom = rowTop + modelRows - 1;
-        const size_t colLeft = (rawCols - modelCols) / 2;
-        const size_t colRight = colLeft + modelCols - 1;
+    // Start position for the image buffer
+    const uint8_t* cameraStartPos = cameraBuffer;
 
-        // Place the pointer at the start of the image ()
-        const size_t bytesPixel = (const size_t)Camera.bytesPerPixel();
-        const uint8_t* cropStart = rawImageBuffer; // + ((verTop * rawCols) + horLeft) * multiplier;
-
-        // Copy the data to the intermediate buffer
-        int idx = 0;
-        for (size_t row = rowTop; row <= rowBottom; row++) {
-            size_t rowPos = row * rawCols * bytesPixel;
-            for (size_t col = colLeft; col <= colRight; col++) {
-                for (size_t b = 0; b < bytesPixel; b++, idx++) {
-                    croppedImageBuffer[idx] = cropStart[rowPos + col * bytesPixel + b];
-                }
-            }
-        }
-        return kTfLiteOk;
-    }
-
-    // Takes the cropped image and transform it to RGB (3-channels) for the model
-    TfLiteStatus ConvertToRGB() {
-        const size_t frameShape = modelCols * modelRows;
-
-        // Copy the data to the intermediate buffer
-        int idx = 0;
-        for (int pos = 0; pos < frameShape; pos++) {
+    // Copy the data to the intermediate buffer
+    int rgbPos = 0;
+    for (int row = rowTop; row <= rowBottom; row++) {
+        for (int col = colLeft; col <= colRight; col++) {
+            int currentPos = (row * GetCameraWidth() + col) * camPixelBytes;
 
             // Combine the bytes that codifies the pixel (L.E.)
             unsigned short pixelCombined = 0;
-            for (int b = (bytesPerPixel - 1); b >= 0; b--, idx++) {
-                uint8_t currentByte = croppedImageBuffer[idx];
+            for (int b = (camPixelBytes - 1); b >= 0; b--) {
+                uint8_t currentByte = cameraStartPos[currentPos + (1 - b)];
                 pixelCombined |= (unsigned short)(currentByte << (b * 8));
             }
 
@@ -74,64 +51,27 @@ namespace {
             uint8_t green = (baseGreen << 2) | (baseGreen >> 4);
             uint8_t blue = (baseBlue << 3) | (baseBlue >> 2);
 
-            // Store in the buffer
-            rgbImageBuffer[3 * pos] = red;
-            rgbImageBuffer[3 * pos + 1] = green;
-            rgbImageBuffer[3 * pos + 2] = blue;
+            // Store the Quantised values of the pixels
+            outBuffer[3 * rgbPos] = tflite::FloatToQuantizedType<int8_t>(
+                red / 255.0f,
+                quantScale,
+                zeroPoint
+            );
+            outBuffer[3 * rgbPos + 1] = tflite::FloatToQuantizedType<int8_t>(
+                green / 255.0f,
+                quantScale,
+                zeroPoint
+            );
+            outBuffer[3 * rgbPos + 2] = tflite::FloatToQuantizedType<int8_t>(
+                blue / 255.0f,
+                quantScale,
+                zeroPoint
+            );
+
+            // Move to next pixel
+            rgbPos++;
         }
-
-        return kTfLiteOk;
     }
-
-    // Qunatisises the image given the training algo used
-    TfLiteStatus QuantizeFrameImage(int8_t* outputBuffer) {
-        int imageSize = (modelRows * modelCols * GetPixelBytes(COLOR_SCHEME));
-        for (int idx = 0; idx <= imageSize; idx++) {
-            outputBuffer[idx] = static_cast<int8_t>(croppedImageBuffer[idx] - 128);
-        }
-        return kTfLiteOk;
-    }
-}
-
-// We assume the camera is ready for adquisitions
-TfLiteStatus GetImage(int8_t* imgBuffer) {
-    MicroPrintf("Camera: Starting frame acquisitions...");
-
-    // (1) Read a frame from the camera
-    MicroPrintf(" - Camera: Capturing frame...");
-    TfLiteStatus captureStatus = CaptureFrame();
-    if (captureStatus != kTfLiteOk) {
-        MicroPrintf(" - Error: Frame captured failed!");
-        return captureStatus;
-    }
-
-    // (2) Crop/Resize the image to the desired input shape
-    MicroPrintf(" - Camera: Cropping frame...");
-    TfLiteStatus cropStatus = CropFrameImage();
-    if (cropStatus != kTfLiteOk) {
-        MicroPrintf(" - Error: Frame crop failed!");
-        return cropStatus;
-    }
-
-    // (3) Transform to RGB space
-    MicroPrintf(" - Camera: Transforming to RGB...");
-    TfLiteStatus rgbStatus = ConvertToRGB();
-    if (rgbStatus != kTfLiteOk) {
-        MicroPrintf(" - Error: Conversion to RGB failed!");
-        return rgbStatus;
-    }
-    Serial.write(rgbImageBuffer, modelCols * modelRows * 3);
-    Serial.println();
-
-    // (4) Quantize input image for model prediction
-    // MicroPrintf(" - Camera: Quantisizing frame...");
-    // TfLiteStatus quantStatus = QuantizeFrameImage(imgBuffer);
-    // if (quantStatus != kTfLiteOk) {
-    //     MicroPrintf(" - Error: Quantize Image failed");
-    //     return quantStatus;
-    // }
-
-    MicroPrintf(" - Success: Frame acquired!");
     return kTfLiteOk;
 }
 
@@ -152,7 +92,7 @@ TfLiteStatus SetUpHardware() {
 
     // Buttons and camera
     initializeShield();
-    if (!Camera.begin(QCIF, COLOR_SCHEME, 5, OV7675)) {
+    if (!Camera.begin(CAMERA_SHAPE, RGB565, 1, OV7675)) {
         MicroPrintf("Camera (Error): Initialisation failed!");
         return kTfLiteError;
     }

@@ -62,19 +62,15 @@ def process_frame(buffer, width, height):
     return image
 
 
-def process_rgb_frame(buffer, width, height):
-    image = Image.new("RGB", (width, height))
+def process_rgb_frame():
+    print("Reading frame...")
+    image = Image.new("RGB", (cropWidth, cropHeight))
     pixels = image.load()
 
-    index = 0
-    for i in range(height):
-        for j in range(width):
-            pixels[j, i] = tuple([buffer[index + p] for p in range(3)])
-            index += 3
-
-            if (i > 70) and (i <= 75):
-                if (j > 80) and (j <= 95):
-                    print(pixels[j, i])
+    for j in range(cropWidth):
+        for i in range(cropHeight):
+            pixel_values = arduino.readline().decode().strip()
+            pixels[j, i] = tuple([int(float(v) * 255) for v in pixel_values.split(",")])
     return image
 
 
@@ -95,9 +91,8 @@ def read_frames_from_serial():
             # crop_queue.put(cropimage)
             continue
 
-        elif stringBuffer == b" - Camera: Transforming to RGB...\r\n":
-            cropImageBuffer = arduino.read(size=rgbBytesPerFrame)
-            cropimage = process_rgb_frame(cropImageBuffer, cropWidth, cropHeight)
+        elif stringBuffer == b"PIXELS\r\n":
+            cropimage = process_rgb_frame()
             crop_queue.put(cropimage)
 
 
