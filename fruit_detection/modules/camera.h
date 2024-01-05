@@ -9,8 +9,8 @@ constexpr int CAMERA_SHAPE = 3; // (QCIF = 3); (QQVGA = 4)
 constexpr int camPixelBytes = 2;
 
 // Define models input shape
-constexpr int modelHeight = 128;
-constexpr int modelWidth = 128;
+constexpr int modelHeight = 114;
+constexpr int modelWidth = 114;
 constexpr int modelChannels = 3;
 
 // Places a quantized 8-bit image into the given tensor
