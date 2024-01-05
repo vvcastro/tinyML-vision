@@ -107,7 +107,7 @@ void loop() {
     float scoreOne = (predOne - outputTensor->params.zero_point) * outputTensor->params.scale;
     float scoreTwo = (predTwo - outputTensor->params.zero_point) * outputTensor->params.scale;
     float scoreThree = (predThree - outputTensor->params.zero_point) * outputTensor->params.scale;
-    float scoreFour = (predThree - outputTensor->params.zero_point) * outputTensor->params.scale;
+    float scoreFour = (predFour - outputTensor->params.zero_point) * outputTensor->params.scale;
     float scoreFive = (predFive - outputTensor->params.zero_point) * outputTensor->params.scale;
     float scoreSix = (predSix - outputTensor->params.zero_point) * outputTensor->params.scale;
     Serial.print(" - PRED FLOAT: [ ");
