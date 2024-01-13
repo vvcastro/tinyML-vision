@@ -13,7 +13,7 @@ DATASET_FOLDER = f"{DATA_FOLDER}/fruits"
 create_dirname(DATASET_FOLDER)
 
 # Model dir (from the .zip)
-MODEL_FOLDER = f"{MODELS_FOLDER}/model"
+MODEL_FOLDER = f"{MODELS_FOLDER}/base_model"
 
 # -----------------------------------------
 # Download the dataset if it doesn't exist
