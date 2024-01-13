@@ -13,9 +13,8 @@ bytesPerPixel = 2
 rawWidth, rawHeight = (176, 144)
 rawBytesPerFrame = rawWidth * rawHeight * bytesPerPixel
 
-cropWidth, cropHeight = (112, 112)
-cropBytesPerFrame = cropWidth * cropHeight * bytesPerPixel
-rgbBytesPerFrame = cropWidth * cropHeight * 3
+rgbWidth, rgbHeight = (112, 112)
+rgbBytesPerFrame = rgbWidth * rgbHeight * 3
 
 # Stablish connection with Arduino
 port = find_arduino()
@@ -74,6 +73,24 @@ def process_rgb_frame():
     return image
 
 
+def process_rgb_bytes(buffer, width, height):
+    image = Image.new("RGB", (width, height))
+    pixels = image.load()
+
+    for row in range(height):
+        for col in range(width):
+            pos = (row * width + col) * 3
+            p = struct.unpack(">I", buffer[pos : pos + 4])[0]
+
+            # _ = (p & 0x)
+            red = (p & 0xFF000000) >> 24
+            green = (p & 0x00FF0000) >> 16
+            blue = (p & 0x0000FF00) >> 8
+
+            pixels[col, row] = (red, green, blue)
+    return image
+
+
 def read_frames_from_serial():
     while True:
         stringBuffer = arduino.readline()
@@ -92,7 +109,8 @@ def read_frames_from_serial():
             continue
 
         elif stringBuffer == b"PIXELS\r\n":
-            cropimage = process_rgb_frame()
+            imageBuffer = arduino.read(size=rgbBytesPerFrame + 1)
+            cropimage = process_rgb_bytes(imageBuffer, rgbWidth, rgbHeight)
             crop_queue.put(cropimage)
 
 

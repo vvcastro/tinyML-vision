@@ -2,6 +2,15 @@
 testing/
 .vscode/
 .ipynb_checkpoints/
-__pycache__
+__pycache__/
 
+# Don't upload data
 models/*/**
+.zip
+outputs/
+
+trainer/data/*
+!trainer/data/.keep
+
+trainer/models/*
+!trainer/models/.keep
