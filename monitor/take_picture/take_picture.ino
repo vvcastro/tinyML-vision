@@ -15,8 +15,8 @@ void loop() {
     WaitForButton();
 
     bool captureStatus = GetImage(modelBuffer);
-    Serial.println("PIXELS");
-    // Serial.print(modelBuffer, HEX);
+
+    Serial.println("Frame:");
     Serial.write(modelBuffer, modelHeight * modelWidth * modelChannels);
     Serial.println();
 }

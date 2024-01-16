@@ -7,73 +7,21 @@ import threading
 import struct
 import queue
 import time
+import os
 
 # Configuration
-bytesPerPixel = 2
-rawWidth, rawHeight = (176, 144)
-rawBytesPerFrame = rawWidth * rawHeight * bytesPerPixel
-
-rgbWidth, rgbHeight = (112, 112)
-rgbBytesPerFrame = rgbWidth * rgbHeight * 3
+width, height = (112, 112)
+bytesPerFrame = width * height * 3
 
 # Stablish connection with Arduino
 port = find_arduino()
 arduino = serial.Serial(port, baudrate=9600)
 
 # Global queue to store frames
-raw_queue = queue.Queue()
-crop_queue = queue.Queue()
-
-raw_image = []
-crop_image = []
+image_queue = queue.Queue()
 
 
-def process_frame(buffer, width, height):
-    image = Image.new("RGB", (width, height))
-    pixels = image.load()
-
-    index = 0
-    for i in range(height):
-        for j in range(width):
-            p = struct.unpack(">H", buffer[index : index + 2])[0]
-
-            # # Convert RGB565 to RGB 24-bit
-            # r = ((p >> 11) & 0x1F) << 3
-            # g = ((p >> 5) & 0x3F) << 2
-            # b = ((p >> 0) & 0x1F) << 3
-            # print(r, g, b)
-
-            # Convert RGB565 to RGB 24-bit
-            base_red = (p & 0xF800) >> 11
-            base_green = (p & 0x07E0) >> 5
-            base_blue = p & 0x001F
-
-            r = (base_red << 3) | (base_red >> 2)
-            g = (base_green << 2) | (base_green >> 4)
-            b = (base_blue << 3) | (base_blue >> 2)
-            if (i > 70) and (i <= 75):
-                if (j > 80) and (j <= 95):
-                    print(r, g, b)
-
-            # Set pixel color
-            pixels[j, i] = (r, g, b)
-            index += 2
-    return image
-
-
-def process_rgb_frame():
-    print("Reading frame...")
-    image = Image.new("RGB", (cropWidth, cropHeight))
-    pixels = image.load()
-
-    for row in range(cropHeight):
-        for col in range(cropWidth):
-            pixel_values = arduino.readline().decode().strip()
-            pixels[col, row] = tuple([int(float(v) * 255) for v in pixel_values.split(",")])
-    return image
-
-
-def process_rgb_bytes(buffer, width, height):
+def process_rgb_bytes(buffer):
     image = Image.new("RGB", (width, height))
     pixels = image.load()
 
@@ -82,11 +30,12 @@ def process_rgb_bytes(buffer, width, height):
             pos = (row * width + col) * 3
             p = struct.unpack(">I", buffer[pos : pos + 4])[0]
 
-            # _ = (p & 0x)
+            # Mask the bits to obtain only the first three
             red = (p & 0xFF000000) >> 24
             green = (p & 0x00FF0000) >> 16
             blue = (p & 0x0000FF00) >> 8
 
+            # Create image
             pixels[col, row] = (red, green, blue)
     return image
 
@@ -94,24 +43,18 @@ def process_rgb_bytes(buffer, width, height):
 def read_frames_from_serial():
     while True:
         stringBuffer = arduino.readline()
-        # print(stringBuffer)
 
-        if stringBuffer == b" - Camera: Capturing frame...\r\n":
-            # rawImageBuffer = arduino.read(size=rawBytesPerFrame)
-            # rawimage = process_frame(rawImageBuffer, rawWidth, rawHeight)
-            # raw_queue.put(rawimage)
-            continue
+        if stringBuffer == b"Frame:\r\n":
+            imageBuffer = arduino.read(size=bytesPerFrame + 1)
+            image = process_rgb_bytes(imageBuffer)
+            image_queue.put(image)
 
-        elif stringBuffer == b" - Camera: Cropping frame...\r\n":
-            # cropImageBuffer = arduino.read(size=cropBytesPerFrame)
-            # cropimage = process_frame(cropImageBuffer, cropWidth, cropHeight)
-            # crop_queue.put(cropimage)
-            continue
 
-        elif stringBuffer == b"PIXELS\r\n":
-            imageBuffer = arduino.read(size=rgbBytesPerFrame + 1)
-            cropimage = process_rgb_bytes(imageBuffer, rgbWidth, rgbHeight)
-            crop_queue.put(cropimage)
+def write_image(image, dir="outputs"):
+    timestamp = time.time()
+    output_file = os.path.join(dir, str(timestamp) + ".png")
+    image.save(output_file, format="PNG")
+    return True
 
 
 # Function to display frames from the queue in order
@@ -124,12 +67,19 @@ def display_frames(frameQueue):
 
     while True:
         try:
-            frame_image = frameQueue.get(timeout=1)  # Get frame from the queue
+            # Get frame from the queue
+            frame_image = frameQueue.get(timeout=1)
+
+            # Display the image with Tk
             tk_image = ImageTk.PhotoImage(frame_image)
             label.config(image=tk_image)
             label.image = tk_image
             root.update_idletasks()
             root.update()
+
+            # Store image in disk
+            write_image(frame_image)
+
         except queue.Empty:
             time.sleep(1)
 
@@ -140,4 +90,4 @@ if __name__ == "__main__":
         daemon=True,
     )
     read_thread.start()
-    display_frames(crop_queue)
+    display_frames(image_queue)

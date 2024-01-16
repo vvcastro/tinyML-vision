@@ -9,7 +9,7 @@
 // QVGA = 2, // 320x240
 // QCIF = 3,  // 176x144
 // QQVGA = 4,  // 160x120
-constexpr int CAMERA_SHAPE = 4;
+constexpr int CAMERA_SHAPE = 3;
 constexpr int camPixelBytes = 2;
 
 // Define models input shape
