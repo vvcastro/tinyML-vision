@@ -5,12 +5,7 @@ testing/
 __pycache__/
 
 # Don't upload data
-models/*/**
-.zip
-outputs/
+trainer/models/*.zip
 
 trainer/data/*
 !trainer/data/.keep
-
-trainer/models/*
-!trainer/models/.keep

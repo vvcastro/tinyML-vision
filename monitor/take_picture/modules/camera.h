@@ -4,7 +4,12 @@
 #include "Arduino.h"
 
 // Type of images we are using
-constexpr int CAMERA_SHAPE = 3; // (QCIF = 3); (QQVGA = 4)
+// VGA = 0,  // 640x480
+// CIF = 1,  // 352x240
+// QVGA = 2, // 320x240
+// QCIF = 3,  // 176x144
+// QQVGA = 4,  // 160x120
+constexpr int CAMERA_SHAPE = 4;
 constexpr int camPixelBytes = 2;
 
 // Define models input shape
@@ -27,6 +32,12 @@ bool SetUpHardware();
 
 constexpr int GetCameraHeight() {
     switch (CAMERA_SHAPE) {
+        case 0:
+            return 480;
+        case 1:
+            return 240;
+        case 2:
+            return 240;
         case 3:
             return 144;
         case 4:
@@ -36,6 +47,12 @@ constexpr int GetCameraHeight() {
 
 constexpr int GetCameraWidth() {
     switch (CAMERA_SHAPE) {
+        case 0:
+            return 640;
+        case 1:
+            return 352;
+        case 2:
+            return 320;
         case 3:
             return 176;
         case 4:

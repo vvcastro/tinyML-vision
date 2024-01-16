@@ -16,7 +16,7 @@ TfLiteTensor* inputTensor = nullptr;
 TfLiteTensor* outputTensor = nullptr;
 
 // An area of memory to use for input, output, and intermediate arrays.
-alignas(16) constexpr int kTensorArenaSize = 8500 * 16;
+alignas(16) constexpr int kTensorArenaSize = 9000 * 16;
 uint8_t tensorArena[kTensorArenaSize];
 
 void setup() {
@@ -36,7 +36,7 @@ void setup() {
     }
 
     // Operations in the graph
-    static tflite::MicroMutableOpResolver<8> opsResolver;
+    static tflite::MicroMutableOpResolver<9> opsResolver;
     opsResolver.AddMul();
     opsResolver.AddSub();
     opsResolver.AddMean();
@@ -45,6 +45,7 @@ void setup() {
     opsResolver.AddDepthwiseConv2D();
     opsResolver.AddReshape();
     opsResolver.AddFullyConnected();
+    opsResolver.AddQuantize();
 
     // Interpreter for the model
     interpreter = new tflite::MicroInterpreter(
@@ -68,7 +69,7 @@ void setup() {
         (inputTensor->dims->data[1] != modelHeight) ||
         (inputTensor->dims->data[2] != modelWidth) ||
         (inputTensor->dims->data[3] != modelChannels) ||
-        (inputTensor->type != kTfLiteInt8)) {
+        (inputTensor->type != kTfLiteUInt8)) {
         MicroPrintf("Model (Error): Bad input tensor parameters in model");
         return;
     }
@@ -80,7 +81,7 @@ void loop() {
     WaitForButton();
 
     TfLiteStatus captureStatus = GetImage(
-        inputTensor->data.int8,
+        inputTensor->data.uint8,
         inputTensor->params.scale,
         inputTensor->params.zero_point
     );

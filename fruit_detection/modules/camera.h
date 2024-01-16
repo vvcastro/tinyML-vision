@@ -14,7 +14,7 @@ constexpr int modelWidth = 112;
 constexpr int modelChannels = 3;
 
 // Places a quantized 8-bit image into the given tensor
-TfLiteStatus GetImage(int8_t* outBuffer, float quantScale, int32_t zeroPoint);
+TfLiteStatus GetImage(uint8_t* outBuffer, float quantScale, int32_t zeroPoint);
 
 // Just to wait until interaction
 void WaitForButton();

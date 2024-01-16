@@ -15,7 +15,7 @@ uint8_t cameraBuffer[CameraFrameSize()];
 // (1) Crops the image to the desired model's input size.
 // (2) Transform from RGB565 to RGB888, adding one byte.
 // (3) Quantize the values to a int8_t type.
-TfLiteStatus GetImage(int8_t* outBuffer, float quantScale, int32_t zeroPoint) {
+TfLiteStatus GetImage(uint8_t* outBuffer, float quantScale, int32_t zeroPoint) {
 
     // Capture a frame and store it into the buffer
     Camera.readFrame(cameraBuffer);
@@ -52,17 +52,17 @@ TfLiteStatus GetImage(int8_t* outBuffer, float quantScale, int32_t zeroPoint) {
             uint8_t blue = (baseBlue << 3) | (baseBlue >> 2);
 
             // Store the Quantised values of the pixels
-            outBuffer[3 * rgbPos] = tflite::FloatToQuantizedType<int8_t>(
+            outBuffer[3 * rgbPos] = tflite::FloatToQuantizedType<uint8_t>(
                 red / 255.0f,
                 quantScale,
                 zeroPoint
             );
-            outBuffer[3 * rgbPos + 1] = tflite::FloatToQuantizedType<int8_t>(
+            outBuffer[3 * rgbPos + 1] = tflite::FloatToQuantizedType<uint8_t>(
                 green / 255.0f,
                 quantScale,
                 zeroPoint
             );
-            outBuffer[3 * rgbPos + 2] = tflite::FloatToQuantizedType<int8_t>(
+            outBuffer[3 * rgbPos + 2] = tflite::FloatToQuantizedType<uint8_t>(
                 blue / 255.0f,
                 quantScale,
                 zeroPoint

@@ -57,10 +57,6 @@ bool GetImage(uint8_t* outBuffer) {
             rgbPos++;
         }
     }
-      Serial.print("Final position: ");
-      Serial.print(rgbPos);
-      Serial.print(" | ");
-      Serial.println();
     return true;
 }
 
