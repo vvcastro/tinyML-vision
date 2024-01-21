@@ -10,9 +10,9 @@ import shutil
 import glob
 import os
 
-BASE_DIR = os.path.join("data", "Dataset")
-TRAIN_DIR = os.path.join("data", "trainData")
-TEST_DIR = os.path.join("data", "testData")
+BASE_DIR = os.path.join("data", "TinyDataset", "ardData")
+TRAIN_DIR = os.path.join("data", "TinyDataset", "trainData")
+TEST_DIR = os.path.join("data", "TinyDataset", "testData")
 
 # Get the classes
 classes = [d for d in os.listdir(BASE_DIR) if os.path.isdir(os.path.join(BASE_DIR, d))]
@@ -20,7 +20,7 @@ classes = sorted(classes)
 
 # Get all the files and their labels
 datapoints = glob.glob(os.path.join(BASE_DIR, "*", "*"))
-labels = [s.split(os.sep)[2] for s in datapoints]
+labels = [s.split(os.sep)[-2] for s in datapoints]
 
 # Split in a stratified way ( keeping the same class distribution )
 X_train, X_test, Y_train, Y_test = train_test_split(

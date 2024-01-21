@@ -36,7 +36,7 @@ void setup() {
     }
 
     // Operations in the graph
-    static tflite::MicroMutableOpResolver<9> opsResolver;
+    static tflite::MicroMutableOpResolver<10> opsResolver;
     opsResolver.AddMul();
     opsResolver.AddSub();
     opsResolver.AddMean();
@@ -46,6 +46,7 @@ void setup() {
     opsResolver.AddReshape();
     opsResolver.AddFullyConnected();
     opsResolver.AddQuantize();
+    opsResolver.AddSoftmax();
 
     // Interpreter for the model
     interpreter = new tflite::MicroInterpreter(
@@ -90,7 +91,7 @@ void loop() {
     }
 
     // Run the model on the loaded input.
-    MicroPrintf("2) Running model.");
+    MicroPrintf("... Running model ...");
     if (kTfLiteOk != interpreter->Invoke()) {
         MicroPrintf("Invoke failed.");
     }
@@ -103,7 +104,8 @@ void loop() {
     int8_t predFour = outputTensor->data.int8[3];
     int8_t predFive = outputTensor->data.int8[4];
     int8_t predSix = outputTensor->data.int8[5];
-    MicroPrintf(" - PRED INT: [ %d, %d, %d, %d, %d, %d]", predOne, predTwo, predThree, predFour, predFive, predSix);
+    int8_t predSeven = outputTensor->data.int8[6];
+    MicroPrintf(" - PRED INT: [ %d, %d, %d, %d, %d, %d, %d]", predOne, predTwo, predThree, predFour, predFive, predSix, predSeven);
 
     float scoreOne = (predOne - outputTensor->params.zero_point) * outputTensor->params.scale;
     float scoreTwo = (predTwo - outputTensor->params.zero_point) * outputTensor->params.scale;
@@ -111,6 +113,7 @@ void loop() {
     float scoreFour = (predFour - outputTensor->params.zero_point) * outputTensor->params.scale;
     float scoreFive = (predFive - outputTensor->params.zero_point) * outputTensor->params.scale;
     float scoreSix = (predSix - outputTensor->params.zero_point) * outputTensor->params.scale;
+    float scoreSeven = (predSeven - outputTensor->params.zero_point) * outputTensor->params.scale;
     Serial.print(" - PRED FLOAT: [ ");
     Serial.print(scoreOne, 3);
     Serial.print(", ");
@@ -123,6 +126,8 @@ void loop() {
     Serial.print(scoreFive, 3);
     Serial.print(", ");
     Serial.print(scoreSix, 3);
+    Serial.print(", ");
+    Serial.print(scoreSeven, 3);
     Serial.print(" ]");
     Serial.println();
 
