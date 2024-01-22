@@ -19,6 +19,9 @@ TfLiteTensor* outputTensor = nullptr;
 alignas(16) constexpr int kTensorArenaSize = 9000 * 16;
 uint8_t tensorArena[kTensorArenaSize];
 
+// To start frame acquisition
+bool commandRecv = false;
+
 void setup() {
 
     // Initialise hardware and entities
@@ -37,6 +40,7 @@ void setup() {
 
     // Operations in the graph
     static tflite::MicroMutableOpResolver<10> opsResolver;
+    opsResolver.AddAdd();
     opsResolver.AddMul();
     opsResolver.AddSub();
     opsResolver.AddMean();
@@ -46,7 +50,6 @@ void setup() {
     opsResolver.AddReshape();
     opsResolver.AddFullyConnected();
     opsResolver.AddQuantize();
-    opsResolver.AddSoftmax();
 
     // Interpreter for the model
     interpreter = new tflite::MicroInterpreter(
@@ -77,59 +80,72 @@ void setup() {
 }
 
 void loop() {
+    String command;
 
-    // Waits until the button is clicked
-    WaitForButton();
-
-    TfLiteStatus captureStatus = GetImage(
-        inputTensor->data.uint8,
-        inputTensor->params.scale,
-        inputTensor->params.zero_point
-    );
-    if (captureStatus != kTfLiteOk) {
-        MicroPrintf(" - Error: Frame capture failed!");
+    // Read incoming commands from serial monitor
+    while (Serial.available()) {
+        char c = Serial.read();
+        if ((c != '\n') && (c != '\r')) {
+            command.concat(c);
+        }
+        else if (c == '\r') {
+            commandRecv = true;
+            command.toLowerCase();
+        }
     }
 
-    // Run the model on the loaded input.
-    MicroPrintf("... Running model ...");
-    if (kTfLiteOk != interpreter->Invoke()) {
-        MicroPrintf("Invoke failed.");
+    // Command interpretation
+    if (commandRecv) {
+        commandRecv = false;
+        if (command == "capture" or command == "c") {
+
+            TfLiteStatus captureStatus = GetImage(
+                inputTensor->data.uint8,
+                inputTensor->params.scale,
+                inputTensor->params.zero_point
+            );
+            if (captureStatus != kTfLiteOk) {
+                MicroPrintf(" - Error: Frame capture failed!");
+            }
+
+            // Run the model on the loaded input.
+            MicroPrintf("... Running model ...");
+            if (kTfLiteOk != interpreter->Invoke()) {
+                MicroPrintf("Invoke failed.");
+            }
+            outputTensor = interpreter->output(0);
+
+            // Get the output meaning
+            int8_t predOne = outputTensor->data.int8[0];
+            int8_t predTwo = outputTensor->data.int8[1];
+            int8_t predThree = outputTensor->data.int8[2];
+            int8_t predFour = outputTensor->data.int8[3];
+            int8_t predFive = outputTensor->data.int8[4];
+            int8_t predSix = outputTensor->data.int8[5];
+            MicroPrintf(" - PRED INT: [ %d, %d, %d, %d, %d, %d]", predOne, predTwo, predThree, predFour, predFive, predSix);
+
+            float scoreOne = (predOne - outputTensor->params.zero_point) * outputTensor->params.scale;
+            float scoreTwo = (predTwo - outputTensor->params.zero_point) * outputTensor->params.scale;
+            float scoreThree = (predThree - outputTensor->params.zero_point) * outputTensor->params.scale;
+            float scoreFour = (predFour - outputTensor->params.zero_point) * outputTensor->params.scale;
+            float scoreFive = (predFive - outputTensor->params.zero_point) * outputTensor->params.scale;
+            float scoreSix = (predSix - outputTensor->params.zero_point) * outputTensor->params.scale;
+            Serial.print(" - PRED FLOAT: [ ");
+            Serial.print(scoreOne, 3);
+            Serial.print(", ");
+            Serial.print(scoreTwo, 3);
+            Serial.print(", ");
+            Serial.print(scoreThree, 3);
+            Serial.print(", ");
+            Serial.print(scoreFour, 3);
+            Serial.print(", ");
+            Serial.print(scoreFive, 3);
+            Serial.print(", ");
+            Serial.print(scoreSix, 3);
+            Serial.print(" ]");
+            Serial.println();
+
+        }
     }
-    outputTensor = interpreter->output(0);
-
-    // Get the output meaning
-    int8_t predOne = outputTensor->data.int8[0];
-    int8_t predTwo = outputTensor->data.int8[1];
-    int8_t predThree = outputTensor->data.int8[2];
-    int8_t predFour = outputTensor->data.int8[3];
-    int8_t predFive = outputTensor->data.int8[4];
-    int8_t predSix = outputTensor->data.int8[5];
-    int8_t predSeven = outputTensor->data.int8[6];
-    MicroPrintf(" - PRED INT: [ %d, %d, %d, %d, %d, %d, %d]", predOne, predTwo, predThree, predFour, predFive, predSix, predSeven);
-
-    float scoreOne = (predOne - outputTensor->params.zero_point) * outputTensor->params.scale;
-    float scoreTwo = (predTwo - outputTensor->params.zero_point) * outputTensor->params.scale;
-    float scoreThree = (predThree - outputTensor->params.zero_point) * outputTensor->params.scale;
-    float scoreFour = (predFour - outputTensor->params.zero_point) * outputTensor->params.scale;
-    float scoreFive = (predFive - outputTensor->params.zero_point) * outputTensor->params.scale;
-    float scoreSix = (predSix - outputTensor->params.zero_point) * outputTensor->params.scale;
-    float scoreSeven = (predSeven - outputTensor->params.zero_point) * outputTensor->params.scale;
-    Serial.print(" - PRED FLOAT: [ ");
-    Serial.print(scoreOne, 3);
-    Serial.print(", ");
-    Serial.print(scoreTwo, 3);
-    Serial.print(", ");
-    Serial.print(scoreThree, 3);
-    Serial.print(", ");
-    Serial.print(scoreFour, 3);
-    Serial.print(", ");
-    Serial.print(scoreFive, 3);
-    Serial.print(", ");
-    Serial.print(scoreSix, 3);
-    Serial.print(", ");
-    Serial.print(scoreSeven, 3);
-    Serial.print(" ]");
-    Serial.println();
-
 }
 
